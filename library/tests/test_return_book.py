@@ -1,5 +1,7 @@
+from datetime import timedelta
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from library.models import Book, BorrowedBook, Member
 from users.models import Librarian
@@ -17,8 +19,16 @@ class TestReturnBookView(TestCase):
             borrowing_fee=1.00,
             status="available",
         )
-        self.borrowed_book = BorrowedBook.objects.create(member=self.member, book=self.book, return_date="2021-12-12")
-        self.borrowed_book2 = BorrowedBook.objects.create(member=self.member, book=self.book, return_date="2024-12-12")
+        self.borrowed_book = BorrowedBook.objects.create(
+            member=self.member,
+            book=self.book,
+            return_date=timezone.now().date() - timedelta(days=7),
+        )
+        self.borrowed_book2 = BorrowedBook.objects.create(
+            member=self.member,
+            book=self.book,
+            return_date=timezone.now().date() + timedelta(days=7),
+        )
 
     def test_login_required(self):
         response = self.client.get(reverse("return-book", kwargs={"pk": self.borrowed_book2.pk}))

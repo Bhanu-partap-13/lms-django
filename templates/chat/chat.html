@@ -1,0 +1,448 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>{% if active_room %}{{ active_room.name|default:"Chat" }}{% else %}Messages{% endif %} | Real-Time Chat</title>
+  
+  <!-- Modern Strict Design System CSS -->
+  <link rel="stylesheet" href="{% static 'chat/chat.css' %}">
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="chat-container">
+    
+    <!-- Mobile Backdrop -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+    <!-- ================================================================== -->
+    <!-- 1. SIDEBAR (CHAT LIST)                                             -->
+    <!-- ================================================================== -->
+    <aside id="chatSidebar" class="chat-sidebar">
+      <!-- Header -->
+      <div class="sidebar-header">
+        <div class="brand-badge">
+          <div class="brand-logo">AG</div>
+          <span class="brand-title">Messages</span>
+        </div>
+        <div class="header-actions">
+          <!-- Join Room via Invite Button -->
+          <button class="icon-btn bordered" title="Join Room with Invite Code" onclick="openJoinModal()">
+            <i data-lucide="plus" style="width: 15px; height: 15px;"></i>
+          </button>
+          <!-- Theme Inversion Toggle -->
+          <button id="themeToggleBtn" class="icon-btn bordered" title="Toggle Theme (Light / Dark)" onclick="toggleTheme()">
+            <i data-lucide="moon" id="themeIcon" style="width: 15px; height: 15px;"></i>
+          </button>
+          <button class="icon-btn menu-toggle" onclick="toggleSidebar()">
+            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search Input -->
+      <div class="search-wrapper">
+        <div class="search-input-box">
+          <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+          <input type="text" id="roomSearchInput" class="search-input" placeholder="Search conversations..." onkeyup="filterRooms()">
+        </div>
+      </div>
+
+      <!-- Rooms Feed -->
+      <div class="rooms-feed" id="roomsList">
+        {% if rooms %}
+          {% for r in rooms %}
+            <a href="{% url 'chat:chat_app_room' room_id=r.id %}" 
+               class="room-card {% if active_room and active_room.id == r.id %}active{% endif %}">
+              <div class="avatar-wrapper">
+                <div class="avatar">
+                  {{ r.name|default:"Room"|slice:":2"|upper }}
+                </div>
+                <span class="presence-dot"></span>
+              </div>
+              <div class="room-meta">
+                <div class="room-meta-top">
+                  <span class="room-name">{{ r.name|default:"Chat Room" }}</span>
+                  <span class="room-time">{{ r.updated_at|date:"H:i" }}</span>
+                </div>
+                <div class="room-meta-bottom">
+                  <p class="room-snippet">{{ r.room_type }}</p>
+                  <div class="room-badges">
+                    <i data-lucide="pin" class="pin-icon" style="width: 11px; height: 11px;"></i>
+                  </div>
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        {% else %}
+          <div class="room-card active" onclick="selectMockRoom(this, 'Engineering Core')">
+            <div class="avatar-wrapper">
+              <div class="avatar">EC</div>
+              <span class="presence-dot"></span>
+            </div>
+            <div class="room-meta">
+              <div class="room-meta-top">
+                <span class="room-name">Engineering Core</span>
+                <span class="room-time">12:45 PM</span>
+              </div>
+              <div class="room-meta-bottom">
+                <p class="room-snippet">PostgreSQL composite index ready.</p>
+                <div class="room-badges">
+                  <i data-lucide="pin" class="pin-icon" style="width: 11px; height: 11px;"></i>
+                  <span class="unread-badge">3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </aside>
+
+    <!-- ================================================================== -->
+    <!-- 2. MAIN CHAT VIEWPORT                                              -->
+    <!-- ================================================================== -->
+    <main class="chat-main">
+      <!-- Chat Header -->
+      <header class="chat-header">
+        <div class="header-left">
+          <button class="icon-btn menu-toggle" onclick="toggleSidebar()">
+            <i data-lucide="menu" style="width: 16px; height: 16px;"></i>
+          </button>
+          <div class="header-info">
+            <div class="header-title-row">
+              <h2 id="activeRoomTitle" class="header-title">
+                {% if active_room %}{{ active_room.name|default:"Chat Room" }}{% else %}Engineering Core{% endif %}
+              </h2>
+              <span class="member-pill">Live Room</span>
+            </div>
+            <div class="status-subtitle">
+              <div id="connectionStatusPill" class="connection-pill connected">
+                <span class="pulse-indicator"></span>
+                <span id="connectionStatusText">Active now</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!-- Copy Invite Link Action -->
+          <button class="icon-btn" title="Copy Invite Link" onclick="if(window.chatClient) window.chatClient.copyInviteToClipboard()">
+            <i data-lucide="link-2" style="width: 15px; height: 15px;"></i>
+          </button>
+          <button class="icon-btn" title="Search messages">
+            <i data-lucide="search" style="width: 15px; height: 15px;"></i>
+          </button>
+          <button class="icon-btn" title="Voice call">
+            <i data-lucide="phone" style="width: 15px; height: 15px;"></i>
+          </button>
+          <button class="icon-btn" title="Video call">
+            <i data-lucide="video" style="width: 15px; height: 15px;"></i>
+          </button>
+          <div class="header-divider"></div>
+          <button class="icon-btn" title="More options">
+            <i data-lucide="more-vertical" style="width: 15px; height: 15px;"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Message Stream -->
+      <div id="messagesStream" class="messages-stream">
+        <!-- Seed messages for initial rendering -->
+        <div class="message-row other" data-message-id="seed-msg-1">
+          <span class="sender-label">Sarah Jenkins</span>
+          <div class="message-bubble">
+            <p class="message-text">Upstash Redis channels layer is live on production with WebSocket TLS.</p>
+            <div class="message-footer">
+              <span>12:40 PM</span>
+            </div>
+          </div>
+          <div class="reactions-wrapper">
+            <button class="reaction-pill reacted" onclick="toggleReaction(this)">
+              <span>🚀</span>
+              <span>4</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Message 2: Outgoing (Blue double tick READ) -->
+        <div class="message-row self" data-message-id="seed-msg-2">
+          <div class="message-bubble">
+            <p class="message-text">Awesome! Did you configure the composite index on (room_id, -created_at, id) for cursor pagination?</p>
+            <div class="message-footer">
+              <span>12:42 PM</span>
+              <span class="receipt-icon read" title="Read">
+                <i data-lucide="check-check" style="width: 13px; height: 13px;"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Message 3: Incoming Voice Note -->
+        <div class="message-row other" data-message-id="seed-msg-3">
+          <span class="sender-label">Sarah Jenkins</span>
+          <div class="message-bubble">
+            <div class="voice-bubble-content">
+              <button class="play-pause-btn" onclick="toggleAudioPlayback(this)">
+                <i data-lucide="play" style="width: 13px; height: 13px; margin-left: 2px;"></i>
+              </button>
+              <div class="waveform-bars">
+                <span class="bar active" style="height: 40%;"></span>
+                <span class="bar active" style="height: 70%;"></span>
+                <span class="bar active" style="height: 30%;"></span>
+                <span class="bar active" style="height: 90%;"></span>
+                <span class="bar active" style="height: 60%;"></span>
+                <span class="bar inactive" style="height: 45%;"></span>
+                <span class="bar inactive" style="height: 80%;"></span>
+                <span class="bar inactive" style="height: 50%;"></span>
+                <span class="bar inactive" style="height: 95%;"></span>
+                <span class="bar inactive" style="height: 30%;"></span>
+                <span class="bar inactive" style="height: 65%;"></span>
+                <span class="bar inactive" style="height: 85%;"></span>
+                <span class="bar inactive" style="height: 40%;"></span>
+                <span class="bar inactive" style="height: 75%;"></span>
+                <span class="bar inactive" style="height: 55%;"></span>
+              </div>
+              <span class="audio-duration">0:24</span>
+            </div>
+            <div class="message-footer">
+              <span>12:43 PM</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Message 4: Incoming Image Attachment -->
+        <div class="message-row other" data-message-id="seed-msg-4">
+          <span class="sender-label">Sarah Jenkins</span>
+          <div class="message-bubble">
+            <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80" 
+                 alt="latency benchmark" 
+                 class="media-attachment">
+            <p class="message-text">Here is the architectural latency benchmark chart.</p>
+            <div class="message-footer">
+              <span>12:44 PM</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Message 5: Outgoing (Delivered grey double-tick) -->
+        <div class="message-row self" data-message-id="seed-msg-5">
+          <div class="message-bubble">
+            <p class="message-text">Benchmark looks outstanding! Single-tick ACK delivered in sub-15ms.</p>
+            <div class="message-footer">
+              <span>12:45 PM</span>
+              <span class="receipt-icon" style="color: inherit; opacity: 0.75;" title="Delivered">
+                <i data-lucide="check-check" style="width: 13px; height: 13px;"></i>
+              </span>
+            </div>
+          </div>
+          <div class="reactions-wrapper">
+            <button class="reaction-pill reacted" onclick="toggleReaction(this)">
+              <span>🔥</span>
+              <span>3</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <!-- 3. INPUT BAR                                                     -->
+      <!-- ================================================================ -->
+      <footer class="chat-input-bar">
+        <div class="input-box-wrapper">
+          <!-- Attachment Button -->
+          <button class="icon-btn" title="Attach file" onclick="document.getElementById('fileUploadInput').click()">
+            <i data-lucide="paperclip" style="width: 16px; height: 16px;"></i>
+          </button>
+          <input type="file" id="fileUploadInput" style="display: none;" onchange="handleFileUpload(event)">
+
+          <!-- Textarea Input -->
+          <textarea id="chatInput" 
+                    class="chat-textarea" 
+                    rows="1" 
+                    placeholder="Message {% if active_room %}{{ active_room.name|default:'room' }}{% else %}Engineering Core{% endif %}..." 
+                    oninput="handleInputResize(this)" 
+                    onkeydown="handleKeyDown(event)"></textarea>
+
+          <!-- Emoji Picker Trigger -->
+          <button class="icon-btn" title="Add emoji reaction" onclick="triggerQuickReaction()">
+            <i data-lucide="smile" style="width: 16px; height: 16px;"></i>
+          </button>
+
+          <!-- Voice Record Button -->
+          <button id="micBtn" class="icon-btn" title="Record voice message" onclick="toggleVoiceRecord()">
+            <i data-lucide="mic" style="width: 16px; height: 16px;"></i>
+          </button>
+
+          <!-- Send Button -->
+          <button id="sendBtn" class="send-btn" title="Send message" onclick="onSendClick()">
+            <i data-lucide="send" style="width: 15px; height: 15px;"></i>
+          </button>
+        </div>
+
+        <div class="input-meta-hint">
+          <span>Press <span class="kbd-shortcut">Return</span> to send, <span class="kbd-shortcut">Shift + Return</span> for new line</span>
+          <span>End-to-end encrypted</span>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- ==================================================================== -->
+  <!-- MODALS & TOASTS                                                      -->
+  <!-- ==================================================================== -->
+  <!-- Join Room via Invite Modal -->
+  <div id="joinRoomModal" class="modal-overlay" onclick="if(event.target === this) closeJoinModal()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">Join Chat Room</span>
+        <button class="icon-btn" onclick="closeJoinModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-description">Enter the unique 10-character Invite Code shared by a room admin or member to join.</p>
+        <input type="text" id="joinCodeInput" class="modal-input" placeholder="e.g. k8F2_qL9xM" onkeydown="if(event.key === 'Enter') submitJoinRoom()">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeJoinModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitJoinRoom()">Join Room</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Real-Time Client JavaScript Engine -->
+  <script src="{% static 'chat/chat.js' %}"></script>
+  <script>
+    // Configuration provided by Django Template Context
+    window.CHAT_CONFIG = {
+      roomId: "{% if active_room %}{{ active_room.id }}{% endif %}",
+      userId: "{{ request.user.id }}",
+      inviteCode: "{% if active_room %}{{ active_room.invite_code|default:'' }}{% endif %}",
+    };
+
+    function initTheme() {
+      const savedTheme = localStorage.getItem("chat_theme") || "light";
+      setTheme(savedTheme);
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+      const nextTheme = currentTheme === "dark" ? "light" : "dark";
+      setTheme(nextTheme);
+    }
+
+    function setTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+      localStorage.setItem("chat_theme", theme);
+
+      const icon = document.getElementById("themeIcon");
+      if (icon) {
+        icon.setAttribute("data-lucide", theme === "dark" ? "sun" : "moon");
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById("chatSidebar");
+      const backdrop = document.getElementById("sidebarBackdrop");
+      sidebar.classList.toggle("open");
+      backdrop.classList.toggle("active");
+    }
+
+    function filterRooms() {
+      const term = document.getElementById("roomSearchInput").value.toLowerCase();
+      const rooms = document.querySelectorAll("#roomsList .room-card");
+      rooms.forEach(card => {
+        const name = card.querySelector(".room-name").innerText.toLowerCase();
+        card.style.display = name.includes(term) ? "flex" : "none";
+      });
+    }
+
+    function handleInputResize(textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        onSendClick();
+      }
+    }
+
+    function onSendClick() {
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (window.chatClient) {
+        window.chatClient.sendMessage(text);
+      }
+      input.value = "";
+      input.style.height = "auto";
+    }
+
+    function toggleAudioPlayback(btn) {
+      const isPlay = btn.innerHTML.includes('data-lucide="play"');
+      btn.innerHTML = isPlay 
+        ? `<i data-lucide="pause" style="width: 13px; height: 13px;"></i>` 
+        : `<i data-lucide="play" style="width: 13px; height: 13px; margin-left: 2px;"></i>`;
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function toggleReaction(btn) {
+      btn.classList.toggle("reacted");
+      const countSpan = btn.querySelectorAll("span")[1];
+      let count = parseInt(countSpan.innerText, 10);
+      countSpan.innerText = btn.classList.contains("reacted") ? count + 1 : count - 1;
+    }
+
+    function triggerQuickReaction() {
+      const stream = document.getElementById("messagesStream");
+      const lastMsg = stream.lastElementChild;
+      if (lastMsg) {
+        let reactionWrap = lastMsg.querySelector(".reactions-wrapper");
+        if (!reactionWrap) {
+          reactionWrap = document.createElement("div");
+          reactionWrap.className = "reactions-wrapper";
+          lastMsg.appendChild(reactionWrap);
+        }
+        const newPill = document.createElement("button");
+        newPill.className = "reaction-pill reacted";
+        newPill.onclick = function() { toggleReaction(this); };
+        newPill.innerHTML = `<span>❤️</span><span>1</span>`;
+        reactionWrap.appendChild(newPill);
+      }
+    }
+
+    function toggleVoiceRecord() {
+      const mic = document.getElementById("micBtn");
+      mic.style.color = mic.style.color === "rgb(239, 68, 68)" ? "" : "#EF4444";
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        showToast("Selected attachment: " + file.name + " (" + (file.size / 1024).toFixed(1) + " KB)");
+      }
+    }
+
+    // Initialize Chat Client on DOM Load
+    document.addEventListener("DOMContentLoaded", () => {
+      initTheme();
+      if (window.lucide) lucide.createIcons();
+      window.chatClient = initChatClient(window.CHAT_CONFIG);
+    });
+  </script>
+</body>
+</html>

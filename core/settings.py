@@ -20,7 +20,7 @@ from core.logging_formatter import CustomJsonFormatter as JsonFormatter
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
-environ.Env.read_env()
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -36,6 +36,10 @@ ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
+DAPHNE_APP = [
+    "daphne",
+]
+
 DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -45,14 +49,17 @@ DJANGO_APPS = [
     "django.contrib.staticfiles",
 ]
 
-THIRD_PARTY_APPS = []
+THIRD_PARTY_APPS = [
+    "channels",
+]
 
 LOCAL_APPS = [
     "users",
     "library",
+    "chat",
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = DAPHNE_APP + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -85,20 +92,57 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "core.wsgi.application"
+ASGI_APPLICATION = "core.asgi.application"
+
+# Upstash Redis / Redis Channel Layer Configuration
+UPSTASH_REDIS_URL = env("UPSTASH_REDIS_URL", default=None) or env("REDIS_URL", default=None)
+
+# Automatically construct rediss:// connection string from Upstash REST URL + Token if provided
+if not UPSTASH_REDIS_URL:
+    rest_url = env("UPSTASH_REDIS_REST_URL", default=None)
+    rest_token = env("UPSTASH_REDIS_REST_TOKEN", default=None)
+    if rest_url and rest_token:
+        clean_host = rest_url.replace("https://", "").replace("http://", "").rstrip("/")
+        UPSTASH_REDIS_URL = f"rediss://default:{rest_token}@{clean_host}:6379"
+
+if UPSTASH_REDIS_URL:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [UPSTASH_REDIS_URL],
+                "capacity": 1500,  # Max messages buffered per channel
+                "expiry": 60,      # Ephemeral channel message TTL in seconds
+            },
+        },
+    }
+else:
+    # Ephemeral in-memory channel layer for local development / testing without Redis
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
 
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-if env("POSTGRES_DB", default=None):
+if env("DATABASE_URL", default=None):
+    DATABASES = {"default": env.db("DATABASE_URL")}
+elif env("POSTGRES_DB", default=None):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": env("POSTGRES_DB"),
             "USER": env("POSTGRES_USER"),
             "PASSWORD": env("POSTGRES_PASSWORD"),
-            "HOST": env("POSTGRES_HOST"),
-            "PORT": env("POSTGRES_PORT"),
+            "HOST": env("POSTGRES_HOST", default="localhost"),
+            "PORT": env("POSTGRES_PORT", default="5432"),
+            "CONN_MAX_AGE": env.int("CONN_MAX_AGE", default=60),
+            "OPTIONS": {
+                "connect_timeout": 10,
+            },
         }
     }
 else:
@@ -149,6 +193,9 @@ if DEBUG:
     STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 else:
     STATIC_ROOT = os.path.join(BASE_DIR, "static")
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 
 # Default primary key field type
