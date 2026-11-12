@@ -39,11 +39,10 @@
         <span class="icon-menu"></span>
       </button>
     </div>
-    <div>
-      <a class="" href="{% url 'home' %}" style="font-size: 20px; font-weight: 900; color: #000;">
+    <div class="brand-logo-container">
+      <a class="brand-logo-text" href="{% url 'home' %}" style="font-size: 20px; font-weight: 900; color: #000; text-decoration: none;">
         LMS
       </a>
-
     </div>
   </div>
   <div class="navbar-menu-wrapper d-flex align-items-top">
@@ -57,15 +56,13 @@
       <li class="nav-item dropdown d-none d-lg-block user-dropdown">
         <a class="nav-link" id="UserDropdown" href="#" data-bs-toggle="dropdown" aria-expanded="false">
           <i class="mdi mdi-account-circle" style="font-size: 40px;"></i>
+        </a>
         <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="UserDropdown">
           <div class="dropdown-header text-center">
             <i class="mdi mdi-account-circle" style="font-size: 40px;"></i>
             <p class="mb-1 mt-3 font-weight-semibold">{{ request.user.first_name }} {{ request.user.last_name }}</p>
             <p class="fw-light text-muted mb-0">{{ request.user.email }}</p>
           </div>
-          <a class="dropdown-item"><i class="dropdown-item-icon mdi mdi-account-outline text-primary me-2"></i> My
-            Profile <span class="badge badge-pill badge-danger">1</span></a>
-
           <a class="dropdown-item" href="{% url 'logout' %}"><i class="dropdown-item-icon mdi mdi-power text-primary me-2"></i>Sign Out</a>
         </div>
       </li>
@@ -104,6 +101,12 @@
           <li class="nav-item"> <a class="nav-link" href="{% url 'members' %}">View Members</a></li>
         </ul>
       </div>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" href="{% url 'chat:chat_app' %}">
+        <i class="menu-icon mdi mdi-chat"></i>
+        <span class="menu-title">Chat</span>
+      </a>
     </li>
     <li class="nav-item nav-category">Library</li>
     <li class="nav-item">
@@ -156,7 +159,7 @@
         <footer class="footer">
           <div class="d-sm-flex justify-content-center justify-content-sm-between">
             <span class="text-muted text-center text-sm-left d-block d-sm-inline-block">Library Management System.</span>
-            <span class="float-none float-sm-end d-block mt-1 mt-sm-0 text-center">Copyright © 2024. All rights reserved.</span>
+            <span class="float-none float-sm-end d-block mt-1 mt-sm-0 text-center">Copyright © 2026. All rights reserved.</span>
           </div>
         </footer>
         <!-- partial -->

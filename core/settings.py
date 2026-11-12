@@ -189,10 +189,16 @@ USE_TZ = False
 
 STATIC_URL = "/static/"
 
-if DEBUG:
-    STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-else:
-    STATIC_ROOT = os.path.join(BASE_DIR, "static")
+# STATIC_ROOT: where collectstatic writes the final collected files.
+# Must be a DIFFERENT directory from the source static/ folder.
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+# STATICFILES_DIRS: source directories Django scans for static assets.
+# Never point this at STATIC_ROOT — they must be separate paths.
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+
+# WhiteNoise: serve compressed static files in both dev and production.
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
