@@ -1,13 +1,123 @@
 import json
 from datetime import timedelta
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import JsonResponse
-from django.shortcuts import render
+from django.http import JsonResponse, Http404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views import View
 from .models import ChatRoom, RoomMember, Message, generate_invite_code
+from library.models import Member
+
+User = get_user_model()
+
+
+def get_or_create_direct_room(user_a, user_b):
+    """
+    Deterministically retrieve an existing two-way DIRECT room between user_a and user_b,
+    or create one atomically. Guaranteed no duplicates.
+    """
+    if user_a.id == user_b.id:
+        raise ValueError("Cannot create a direct two-way room with oneself.")
+
+    # Check for existing two-way direct room
+    existing_room = (
+        ChatRoom.objects.filter(
+            room_type=ChatRoom.RoomType.DIRECT,
+            memberships__user=user_a,
+            memberships__is_active=True,
+        )
+        .filter(
+            memberships__user=user_b,
+            memberships__is_active=True,
+        )
+        .distinct()
+        .first()
+    )
+
+    if existing_room:
+        return existing_room, False
+
+    with transaction.atomic():
+        room = ChatRoom.objects.create(
+            room_type=ChatRoom.RoomType.DIRECT,
+            name=None,
+            created_by=user_a,
+            max_members=2,
+            invite_code=None,
+        )
+        RoomMember.objects.create(
+            room=room,
+            user=user_a,
+            role=RoomMember.Role.OWNER,
+            is_active=True,
+        )
+        RoomMember.objects.create(
+            room=room,
+            user=user_b,
+            role=RoomMember.Role.MEMBER,
+            is_active=True,
+        )
+        return room, True
+
+
+def get_or_create_user_for_member(member):
+    """
+    Find or create a User account matching a library Member (by email).
+    """
+    user = User.objects.filter(email=member.email).first()
+    if user:
+        return user
+
+    parts = (member.name or "Member").strip().split(" ", 1)
+    fn = parts[0]
+    ln = parts[1] if len(parts) > 1 else ""
+    username = member.email.split("@")[0]
+
+    import secrets
+    # Ensure unique username
+    base_username = username
+    counter = 1
+    while User.objects.filter(username=username).exists():
+        username = f"{base_username}_{counter}"
+        counter += 1
+
+    user = User.objects.create_user(
+        email=member.email,
+        password=secrets.token_urlsafe(16),
+        first_name=fn,
+        last_name=ln,
+        username=username,
+    )
+    return user
+
+
+class DirectChatWithUserView(LoginRequiredMixin, View):
+    """Open or create a private two-way chat with another registered user."""
+
+    def get(self, request, target_user_id):
+        target_user = get_object_or_404(User, id=target_user_id)
+        if target_user.id == request.user.id:
+            return redirect("chat:chat_app")
+
+        room, _ = get_or_create_direct_room(request.user, target_user)
+        return redirect("chat:chat_app_room", room_id=room.id)
+
+
+class DirectChatWithMemberView(LoginRequiredMixin, View):
+    """Open or create a private two-way chat with a library Member."""
+
+    def get(self, request, member_id):
+        member = get_object_or_404(Member, id=member_id)
+        target_user = get_or_create_user_for_member(member)
+
+        if target_user.id == request.user.id:
+            return redirect("chat:chat_app")
+
+        room, _ = get_or_create_direct_room(request.user, target_user)
+        return redirect("chat:chat_app_room", room_id=room.id)
 
 
 class ChatAppView(LoginRequiredMixin, View):
@@ -17,21 +127,66 @@ class ChatAppView(LoginRequiredMixin, View):
         memberships = (
             RoomMember.objects.filter(user=request.user, is_active=True)
             .select_related("room")
+            .prefetch_related("room__memberships__user")
             .order_by("-room__updated_at")
         )
-        rooms = [m.room for m in memberships]
+
+        decorated_rooms = []
+        for m in memberships:
+            r = m.room
+            if r.room_type == ChatRoom.RoomType.DIRECT:
+                other_member = next(
+                    (mb for mb in r.memberships.all() if mb.user_id != request.user.id and mb.is_active),
+                    None,
+                )
+                if other_member and other_member.user:
+                    u = other_member.user
+                    full_name = f"{u.first_name} {u.last_name}".strip()
+                    r.display_name = full_name or u.email.split("@")[0]
+                    r.display_initials = (
+                        (u.first_name[:1] + (u.last_name[:1] if u.last_name else "")).upper()
+                        or r.display_name[:2].upper()
+                    )
+                else:
+                    r.display_name = "Direct Chat"
+                    r.display_initials = "DC"
+            else:
+                r.display_name = r.name or f"Room-{str(r.id)[:8]}"
+                r.display_initials = (r.display_name[:2]).upper()
+
+            # Latest message preview
+            last_msg = (
+                Message.objects.filter(room=r, is_deleted=False)
+                .order_by("-created_at")
+                .first()
+            )
+            r.latest_message = last_msg
+
+            decorated_rooms.append(r)
+
         active_room = None
         if room_id:
-            active_room = next((r for r in rooms if str(r.id) == str(room_id)), None)
-        if not active_room and rooms:
-            active_room = rooms[0]
+            active_room = next((r for r in decorated_rooms if str(r.id) == str(room_id)), None)
+        if not active_room and decorated_rooms:
+            active_room = decorated_rooms[0]
+
+        # Load real messages for active room (up to last 100)
+        room_messages = []
+        if active_room:
+            room_messages = list(
+                Message.objects.filter(room=active_room, is_deleted=False)
+                .select_related("sender")
+                .prefetch_related("read_receipts", "reactions")
+                .order_by("created_at")[:100]
+            )
 
         return render(
             request,
             "chat/chat.html",
             {
-                "rooms": rooms,
+                "rooms": decorated_rooms,
                 "active_room": active_room,
+                "room_messages": room_messages,
             },
         )
 

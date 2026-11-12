@@ -34,7 +34,7 @@
                         <th>Name</th>
                         <th>Email</th>
                         <th>Amount Due</th>
-                        <th colspan="3">Actions</th>
+                        <th colspan="4">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -44,6 +44,11 @@
                                 <td>{{ member.name }}</td>
                                 <td>{{ member.email }}</td>
                                 <td>{{ member.calculate_amount_due }}</td>
+                                <td>
+                                    <a href="{% url 'chat:direct_chat_member' member.id %}" class="btn btn-outline-primary btn-icon btn-chat-action" title="Chat with {{ member.name }}" aria-label="Chat with {{ member.name }}">
+                                        <i class="mdi mdi-chat"></i>
+                                    </a>
+                                </td>
                                 <td>
                                     <a href="{% url 'lend-member-book' member.pk %}" class="btn btn-success">Lend Book</a>
                                 </td>

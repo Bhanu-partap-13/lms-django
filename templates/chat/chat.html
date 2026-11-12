@@ -25,7 +25,9 @@
       <!-- Header -->
       <div class="sidebar-header">
         <div class="brand-badge">
-          <div class="brand-logo">AG</div>
+          <button class="icon-btn bordered" title="Back to previous page" onclick="handleGoBack()" style="text-decoration: none; color: inherit;">
+            <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+          </button>
           <span class="brand-title">Messages</span>
         </div>
         <div class="header-actions">
@@ -59,43 +61,39 @@
                class="room-card {% if active_room and active_room.id == r.id %}active{% endif %}">
               <div class="avatar-wrapper">
                 <div class="avatar">
-                  {{ r.name|default:"Room"|slice:":2"|upper }}
+                  {{ r.display_initials|default:"CH" }}
                 </div>
                 <span class="presence-dot"></span>
               </div>
               <div class="room-meta">
                 <div class="room-meta-top">
-                  <span class="room-name">{{ r.name|default:"Chat Room" }}</span>
+                  <span class="room-name">{{ r.display_name }}</span>
                   <span class="room-time">{{ r.updated_at|date:"H:i" }}</span>
                 </div>
                 <div class="room-meta-bottom">
-                  <p class="room-snippet">{{ r.room_type }}</p>
+                  <p class="room-snippet">
+                    {% if r.latest_message %}
+                      {{ r.latest_message.text|truncatechars:32 }}
+                    {% else %}
+                      {% if r.room_type == 'DIRECT' %}Direct Message{% else %}Group Chat{% endif %}
+                    {% endif %}
+                  </p>
                   <div class="room-badges">
-                    <i data-lucide="pin" class="pin-icon" style="width: 11px; height: 11px;"></i>
+                    {% if r.room_type == 'DIRECT' %}
+                      <i data-lucide="user" class="pin-icon" style="width: 12px; height: 12px;" title="Direct Two-Way"></i>
+                    {% else %}
+                      <i data-lucide="users" class="pin-icon" style="width: 12px; height: 12px;" title="Group"></i>
+                    {% endif %}
                   </div>
                 </div>
               </div>
             </a>
           {% endfor %}
         {% else %}
-          <div class="room-card active" onclick="selectMockRoom(this, 'Engineering Core')">
-            <div class="avatar-wrapper">
-              <div class="avatar">EC</div>
-              <span class="presence-dot"></span>
-            </div>
-            <div class="room-meta">
-              <div class="room-meta-top">
-                <span class="room-name">Engineering Core</span>
-                <span class="room-time">12:45 PM</span>
-              </div>
-              <div class="room-meta-bottom">
-                <p class="room-snippet">PostgreSQL composite index ready.</p>
-                <div class="room-badges">
-                  <i data-lucide="pin" class="pin-icon" style="width: 11px; height: 11px;"></i>
-                  <span class="unread-badge">3</span>
-                </div>
-              </div>
-            </div>
+          <div style="padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 13px;">
+            <i data-lucide="message-square" style="width: 28px; height: 28px; margin: 0 auto 8px; opacity: 0.5;"></i>
+            <p style="margin: 0; font-weight: 500;">No conversations yet</p>
+            <p style="margin: 4px 0 0; font-size: 11px; opacity: 0.8;">Go to Members to start a direct 1-to-1 chat</p>
           </div>
         {% endif %}
       </div>
@@ -111,12 +109,25 @@
           <button class="icon-btn menu-toggle" onclick="toggleSidebar()">
             <i data-lucide="menu" style="width: 16px; height: 16px;"></i>
           </button>
+          <button class="icon-btn bordered back-btn" title="Back to previous page" onclick="handleGoBack()" style="text-decoration: none; color: inherit;">
+            <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+          </button>
           <div class="header-info">
             <div class="header-title-row">
               <h2 id="activeRoomTitle" class="header-title">
-                {% if active_room %}{{ active_room.name|default:"Chat Room" }}{% else %}Engineering Core{% endif %}
+                {% if active_room %}
+                  {{ active_room.display_name }}
+                {% else %}
+                  Select a Conversation
+                {% endif %}
               </h2>
-              <span class="member-pill">Live Room</span>
+              <span class="member-pill">
+                {% if active_room %}
+                  {% if active_room.room_type == 'DIRECT' %}Direct (1-to-1){% else %}Group Room{% endif %}
+                {% else %}
+                  Ready
+                {% endif %}
+              </span>
             </div>
             <div class="status-subtitle">
               <div id="connectionStatusPill" class="connection-pill connected">
@@ -128,123 +139,64 @@
         </div>
 
         <div class="header-actions">
-          <!-- Copy Invite Link Action -->
-          <button class="icon-btn" title="Copy Invite Link" onclick="if(window.chatClient) window.chatClient.copyInviteToClipboard()">
-            <i data-lucide="link-2" style="width: 15px; height: 15px;"></i>
-          </button>
-          <button class="icon-btn" title="Search messages">
-            <i data-lucide="search" style="width: 15px; height: 15px;"></i>
-          </button>
-          <button class="icon-btn" title="Voice call">
-            <i data-lucide="phone" style="width: 15px; height: 15px;"></i>
-          </button>
-          <button class="icon-btn" title="Video call">
-            <i data-lucide="video" style="width: 15px; height: 15px;"></i>
-          </button>
-          <div class="header-divider"></div>
-          <button class="icon-btn" title="More options">
-            <i data-lucide="more-vertical" style="width: 15px; height: 15px;"></i>
-          </button>
+          {% if active_room and active_room.room_type == 'GROUP' %}
+            <!-- Copy Invite Link Action only for Group Rooms -->
+            <button class="icon-btn" title="Copy Invite Link" onclick="if(window.chatClient) window.chatClient.copyInviteToClipboard()">
+              <i data-lucide="link-2" style="width: 15px; height: 15px;"></i>
+            </button>
+          {% endif %}
         </div>
       </header>
 
       <!-- Message Stream -->
       <div id="messagesStream" class="messages-stream">
-        <!-- Seed messages for initial rendering -->
-        <div class="message-row other" data-message-id="seed-msg-1">
-          <span class="sender-label">Sarah Jenkins</span>
-          <div class="message-bubble">
-            <p class="message-text">Upstash Redis channels layer is live on production with WebSocket TLS.</p>
-            <div class="message-footer">
-              <span>12:40 PM</span>
-            </div>
-          </div>
-          <div class="reactions-wrapper">
-            <button class="reaction-pill reacted" onclick="toggleReaction(this)">
-              <span>🚀</span>
-              <span>4</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Message 2: Outgoing (Blue double tick READ) -->
-        <div class="message-row self" data-message-id="seed-msg-2">
-          <div class="message-bubble">
-            <p class="message-text">Awesome! Did you configure the composite index on (room_id, -created_at, id) for cursor pagination?</p>
-            <div class="message-footer">
-              <span>12:42 PM</span>
-              <span class="receipt-icon read" title="Read">
-                <i data-lucide="check-check" style="width: 13px; height: 13px;"></i>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Message 3: Incoming Voice Note -->
-        <div class="message-row other" data-message-id="seed-msg-3">
-          <span class="sender-label">Sarah Jenkins</span>
-          <div class="message-bubble">
-            <div class="voice-bubble-content">
-              <button class="play-pause-btn" onclick="toggleAudioPlayback(this)">
-                <i data-lucide="play" style="width: 13px; height: 13px; margin-left: 2px;"></i>
-              </button>
-              <div class="waveform-bars">
-                <span class="bar active" style="height: 40%;"></span>
-                <span class="bar active" style="height: 70%;"></span>
-                <span class="bar active" style="height: 30%;"></span>
-                <span class="bar active" style="height: 90%;"></span>
-                <span class="bar active" style="height: 60%;"></span>
-                <span class="bar inactive" style="height: 45%;"></span>
-                <span class="bar inactive" style="height: 80%;"></span>
-                <span class="bar inactive" style="height: 50%;"></span>
-                <span class="bar inactive" style="height: 95%;"></span>
-                <span class="bar inactive" style="height: 30%;"></span>
-                <span class="bar inactive" style="height: 65%;"></span>
-                <span class="bar inactive" style="height: 85%;"></span>
-                <span class="bar inactive" style="height: 40%;"></span>
-                <span class="bar inactive" style="height: 75%;"></span>
-                <span class="bar inactive" style="height: 55%;"></span>
+        {% if room_messages %}
+          {% for msg in room_messages %}
+            <div class="message-row {% if msg.sender_id == request.user.id %}self{% else %}other{% endif %}" data-message-id="{{ msg.id }}">
+              {% if msg.sender_id != request.user.id %}
+                <span class="sender-label">{{ msg.sender.first_name|default:msg.sender.username }}</span>
+              {% endif %}
+              <div class="message-bubble">
+                {% if msg.attachment_file %}
+                  {% if msg.attachment_type == 'IMAGE' %}
+                    <img src="{{ msg.attachment_file.url }}" alt="Attachment" class="media-attachment">
+                  {% endif %}
+                {% endif %}
+                {% if msg.text %}
+                  <p class="message-text">{{ msg.text }}</p>
+                {% endif %}
+                <div class="message-footer">
+                  <span>{{ msg.created_at|date:"H:i" }}</span>
+                  {% if msg.sender_id == request.user.id %}
+                    <span class="receipt-icon read" title="Sent">
+                      <i data-lucide="check-check" style="width: 13px; height: 13px;"></i>
+                    </span>
+                  {% endif %}
+                </div>
               </div>
-              <span class="audio-duration">0:24</span>
             </div>
-            <div class="message-footer">
-              <span>12:43 PM</span>
+          {% endfor %}
+        {% else %}
+          <div class="empty-conversation-state" style="text-align: center; margin: auto; padding: 40px 20px; color: var(--text-muted); max-width: 380px;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--bg-hover); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; border: 1px solid var(--border-subtle);">
+              <i data-lucide="message-circle" style="width: 22px; height: 22px; color: var(--text-primary);"></i>
             </div>
+            <h4 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 600; color: var(--text-primary);">
+              {% if active_room %}
+                Chat with {{ active_room.display_name }}
+              {% else %}
+                No conversation selected
+              {% endif %}
+            </h4>
+            <p style="margin: 0; font-size: 12px; line-height: 1.5;">
+              {% if active_room %}
+                This is the beginning of your direct conversation. Messages sent here are private and delivered in real-time.
+              {% else %}
+                Select an existing conversation from the sidebar or click Chat in the Members list to begin.
+              {% endif %}
+            </p>
           </div>
-        </div>
-
-        <!-- Message 4: Incoming Image Attachment -->
-        <div class="message-row other" data-message-id="seed-msg-4">
-          <span class="sender-label">Sarah Jenkins</span>
-          <div class="message-bubble">
-            <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80" 
-                 alt="latency benchmark" 
-                 class="media-attachment">
-            <p class="message-text">Here is the architectural latency benchmark chart.</p>
-            <div class="message-footer">
-              <span>12:44 PM</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Message 5: Outgoing (Delivered grey double-tick) -->
-        <div class="message-row self" data-message-id="seed-msg-5">
-          <div class="message-bubble">
-            <p class="message-text">Benchmark looks outstanding! Single-tick ACK delivered in sub-15ms.</p>
-            <div class="message-footer">
-              <span>12:45 PM</span>
-              <span class="receipt-icon" style="color: inherit; opacity: 0.75;" title="Delivered">
-                <i data-lucide="check-check" style="width: 13px; height: 13px;"></i>
-              </span>
-            </div>
-          </div>
-          <div class="reactions-wrapper">
-            <button class="reaction-pill reacted" onclick="toggleReaction(this)">
-              <span>🔥</span>
-              <span>3</span>
-            </button>
-          </div>
-        </div>
+        {% endif %}
       </div>
 
       <!-- ================================================================ -->
@@ -434,6 +386,14 @@
       const file = event.target.files[0];
       if (file) {
         showToast("Selected attachment: " + file.name + " (" + (file.size / 1024).toFixed(1) + " KB)");
+      }
+    }
+
+    function handleGoBack() {
+      if (document.referrer && window.location.host === new URL(document.referrer, window.location.href).host) {
+        window.history.back();
+      } else {
+        window.location.href = "{% url 'members' %}";
       }
     }
 

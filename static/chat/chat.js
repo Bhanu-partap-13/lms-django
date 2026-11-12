@@ -289,6 +289,12 @@ class ChatClient {
   appendMessageBubble({ id, tempId, text, senderName, isSelf, timeStr, status }) {
     if (!this.dom.stream) return null;
 
+    // Remove empty-state placeholder if present
+    const emptyState = this.dom.stream.querySelector(".empty-conversation-state");
+    if (emptyState) {
+      emptyState.remove();
+    }
+
     const row = document.createElement("div");
     row.className = `message-row ${isSelf ? "self" : "other"}`;
     if (id) row.setAttribute("data-message-id", id);

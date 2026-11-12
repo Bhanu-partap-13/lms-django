@@ -60,6 +60,8 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+staticfiles/
+media/
 
 # Flask stuff:
 instance/
@@ -168,3 +170,8 @@ cython_debug/
 pyproject.toml
 setup.cfg
 .pre-commit-config.yaml
+
+
+.env
+
+env

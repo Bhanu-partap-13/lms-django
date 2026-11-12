@@ -1,11 +1,19 @@
 import json
 from datetime import timedelta
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.utils import timezone
 from channels.testing import WebsocketCommunicator
+from channels.layers import get_channel_layer
 from core.asgi import application
 from chat.models import ChatRoom, RoomMember, Message, ReadReceipt, MessageReaction
+
+# Use InMemoryChannelLayer during tests — no Redis required.
+TEST_CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 User = get_user_model()
 
@@ -171,7 +179,34 @@ class ChatMessagesApiTests(TestCase):
         resp = self.client.get(f"/chat/rooms/{self.room.id}/messages/")
         self.assertEqual(resp.status_code, 403)
 
+    def test_direct_two_way_room_creation_and_idempotency(self):
+        from chat.views import get_or_create_direct_room
+        # 1. Create two-way direct room
+        room1, created1 = get_or_create_direct_room(self.user1, self.user2)
+        self.assertTrue(created1)
+        self.assertEqual(room1.room_type, ChatRoom.RoomType.DIRECT)
+        self.assertEqual(room1.memberships.filter(is_active=True).count(), 2)
 
+        # 2. Calling again in reverse order must be idempotent (no duplicate room)
+        room2, created2 = get_or_create_direct_room(self.user2, self.user1)
+        self.assertFalse(created2)
+        self.assertEqual(room1.id, room2.id)
+
+    def test_direct_chat_member_redirect(self):
+        from library.models import Member
+        member = Member.objects.create(name="Jane Reader", email="janereader@example.com")
+        response = self.client.get(f"/chat/direct/member/{member.id}/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/chat/", response.url)
+
+    def test_chat_app_view_renders_clean_template(self):
+        response = self.client.get("/chat/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Sarah Jenkins")
+        self.assertNotContains(response, "Engineering Core")
+
+
+@override_settings(CHANNEL_LAYERS=TEST_CHANNEL_LAYERS)
 class ChatWebSocketConsumerTests(TestCase):
     async def test_websocket_flow(self):
         # Create users and room
