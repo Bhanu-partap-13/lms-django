@@ -10,3 +10,67 @@
 .form-error ul li{
     list-style: none;
 }
+
+/* Hide brand logo text when sidebar is collapsed/minimized */
+body.sidebar-icon-only .navbar .navbar-brand-wrapper .brand-logo-container,
+body.sidebar-icon-only .navbar .navbar-brand-wrapper .brand-logo-text {
+    display: none !important;
+}
+
+/* Chat action icon button in members table (Light and Dark mode support) */
+.btn-chat-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid #1F3BB3;
+    color: #1F3BB3;
+    background-color: transparent;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-chat-action i {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.btn-chat-action:hover,
+.btn-chat-action:focus {
+    background-color: #1F3BB3;
+    color: #FFFFFF;
+    border-color: #1F3BB3;
+    box-shadow: 0 2px 6px rgba(31, 59, 179, 0.3);
+}
+
+/* Dark mode support via .dark class or dark system preference */
+.dark .btn-chat-action,
+[data-theme="dark"] .btn-chat-action {
+    border-color: #4B6BFB;
+    color: #4B6BFB;
+    background-color: rgba(75, 107, 251, 0.1);
+}
+
+.dark .btn-chat-action:hover,
+[data-theme="dark"] .btn-chat-action:hover {
+    background-color: #4B6BFB;
+    color: #FFFFFF;
+    border-color: #4B6BFB;
+    box-shadow: 0 2px 8px rgba(75, 107, 251, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not(.light) .btn-chat-action {
+        border-color: #4B6BFB;
+        color: #4B6BFB;
+        background-color: rgba(75, 107, 251, 0.1);
+    }
+    :root:not(.light) .btn-chat-action:hover {
+        background-color: #4B6BFB;
+        color: #FFFFFF;
+        border-color: #4B6BFB;
+        box-shadow: 0 2px 8px rgba(75, 107, 251, 0.4);
+    }
+}
