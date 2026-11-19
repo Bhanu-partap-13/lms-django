@@ -266,7 +266,10 @@ class GenerateInviteView(LoginRequiredMixin, View):
 
         expires_in_hours = data.get("expires_in_hours")
         room = membership.room
+        old_invite_code = room.invite_code
         room.invite_code = generate_invite_code()
+        while room.invite_code == old_invite_code:
+            room.invite_code = generate_invite_code()
 
         if expires_in_hours:
             room.invite_code_expires_at = timezone.now() + timedelta(hours=int(expires_in_hours))

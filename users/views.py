@@ -1,10 +1,13 @@
 import logging
 
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.views.generic import View
 
-from .forms import LoginForm, RegisterForm
+from .forms import LoginForm, ProfileForm, RegisterForm
 
 logger = logging.getLogger(__name__)
 
@@ -82,3 +85,50 @@ class LogoutView(View):
         logout(request)
         logger.info("User logged out")
         return redirect("login")
+
+
+class ProfileView(LoginRequiredMixin, View):
+    template_name = "users/profile.html"
+
+    def get(self, request, *args, **kwargs):
+        return render(
+            request,
+            self.template_name,
+            {
+                "profile_form": ProfileForm(instance=request.user),
+                "password_form": PasswordChangeForm(request.user),
+            },
+        )
+
+    def post(self, request, *args, **kwargs):
+        active_form = request.POST.get("form_type", "profile")
+
+        if active_form == "password":
+            password_form = PasswordChangeForm(request.user, request.POST)
+            profile_form = ProfileForm(instance=request.user)
+
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, "Password changed successfully.")
+                logger.info("User %s changed their password", request.user.email)
+                return redirect("profile")
+
+        else:
+            profile_form = ProfileForm(request.POST, instance=request.user)
+            password_form = PasswordChangeForm(request.user)
+
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "Profile updated successfully.")
+                logger.info("User %s updated their profile", request.user.email)
+                return redirect("profile")
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "profile_form": profile_form,
+                "password_form": password_form,
+            },
+        )

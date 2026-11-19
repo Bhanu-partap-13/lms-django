@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 grid-margin stretch-card">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-1">My Profile</h4>
+        <p class="card-description">View and update your account information.</p>
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-success" role="alert">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="profile">
+
+          {% if profile_form.non_field_errors %}
+            <div class="alert alert-danger">{{ profile_form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="form-group">
+            <label for="{{ profile_form.first_name.id_for_label }}">First Name</label>
+            {{ profile_form.first_name }}
+            <div class="form-error">{{ profile_form.first_name.errors }}</div>
+          </div>
+
+          <div class="form-group">
+            <label for="{{ profile_form.last_name.id_for_label }}">Last Name</label>
+            {{ profile_form.last_name }}
+            <div class="form-error">{{ profile_form.last_name.errors }}</div>
+          </div>
+
+          <div class="form-group">
+            <label for="{{ profile_form.email.id_for_label }}">Email</label>
+            {{ profile_form.email }}
+            <div class="form-error">{{ profile_form.email.errors }}</div>
+          </div>
+
+          <button type="submit" class="btn btn-primary me-2">Save Changes</button>
+          <a href="{% url 'home' %}" class="btn btn-light">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4 grid-margin stretch-card">
+    <div class="card">
+      <div class="card-body">
+        <h4 class="card-title mb-1">Account Information</h4>
+
+        <div class="mb-3">
+          <small class="text-muted d-block">Name</small>
+          <strong>{{ request.user.first_name }} {{ request.user.last_name }}</strong>
+        </div>
+        <div class="mb-3">
+          <small class="text-muted d-block">Email</small>
+          <strong>{{ request.user.email }}</strong>
+        </div>
+        <div class="mb-3">
+          <small class="text-muted d-block">Role</small>
+          {% if request.user.is_superuser %}
+            <span class="badge badge-danger">Super Admin</span>
+          {% elif request.user.is_staff %}
+            <span class="badge badge-primary">Staff</span>
+          {% else %}
+            <span class="badge badge-secondary">Librarian</span>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <small class="text-muted d-block">Member Since</small>
+          <strong>{{ request.user.date_joined|date:"d M Y" }}</strong>
+        </div>
+
+        <hr>
+        <h5 class="mb-3">Change Password</h5>
+        <form method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="password">
+
+          {% if password_form.non_field_errors %}
+            <div class="alert alert-danger">{{ password_form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="form-group">
+            <label for="{{ password_form.old_password.id_for_label }}">Current Password</label>
+            {{ password_form.old_password }}
+            <div class="form-error">{{ password_form.old_password.errors }}</div>
+          </div>
+          <div class="form-group">
+            <label for="{{ password_form.new_password1.id_for_label }}">New Password</label>
+            {{ password_form.new_password1 }}
+            <div class="form-error">{{ password_form.new_password1.errors }}</div>
+          </div>
+          <div class="form-group">
+            <label for="{{ password_form.new_password2.id_for_label }}">Confirm Password</label>
+            {{ password_form.new_password2 }}
+            <div class="form-error">{{ password_form.new_password2.errors }}</div>
+          </div>
+
+          <button type="submit" class="btn btn-outline-primary btn-md">Update Password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

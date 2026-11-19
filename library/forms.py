@@ -64,6 +64,7 @@ class AddBookForm(forms.ModelForm):
     )
 
     borrowing_fee = forms.DecimalField(
+        label="Borrowing Fee (₹)",
         widget=forms.NumberInput(attrs={"class": "form-control form-control-lg", "placeholder": "Enter Book Fee"})
     )
 
@@ -93,6 +94,7 @@ class LendBookForm(forms.ModelForm):
     )
 
     fine = forms.DecimalField(
+        label="Fine (₹)",
         widget=forms.NumberInput(attrs={"class": "form-control form-control-lg", "placeholder": "Enter Fine"})
     )
 
@@ -115,6 +117,7 @@ class LendMemberBookForm(forms.ModelForm):
     )
 
     fine = forms.DecimalField(
+        label="Fine (₹)",
         widget=forms.NumberInput(attrs={"class": "form-control form-control-lg", "placeholder": "Enter Fine"})
     )
 
@@ -129,6 +132,7 @@ class UpdateBorrowedBookForm(forms.ModelForm):
     )
 
     fine = forms.DecimalField(
+        label="Fine (₹)",
         widget=forms.NumberInput(attrs={"class": "form-control form-control-lg", "placeholder": "Enter Fine"})
     )
 

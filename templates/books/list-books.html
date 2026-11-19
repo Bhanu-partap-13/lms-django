@@ -55,7 +55,7 @@
                                 <td>{{ book.title }}</td>
                                 <td>{{ book.author }}</td>
                                 <td>{{ book.category }}</td>
-                                <td>{{ book.borrowing_fee }}</td>
+                                <td>₹{{ book.borrowing_fee|floatformat:2 }}</td>
                                 <td>{{ book.quantity }}</td>
                                 <td class="{% if book.status == 'available' %} text-success {% else %} text-danger {% endif %}">
                                     {% if book.status == 'available' %}

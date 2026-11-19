@@ -39,7 +39,7 @@
                                 <td>{{ forloop.counter }}</td>
                                 <td>{{ payment.member.name }}</td>
                                 <td>{{ payment.payment_method }}</td>
-                                <td>{{ payment.amount }}</td>
+                                <td>₹{{ payment.amount|floatformat:2 }}</td>
                                 <td>
                                     <a href="{% url 'delete-payment' payment.pk %}" class="btn btn-danger">Remove</a>
                                 </td>

@@ -46,7 +46,7 @@
                                 <td>{{ book.book.title }}</td>
                                 <td>{{ book.return_date }}</td>
                                 <td>{{ book.member.name }}</td>
-                                <td>{{ book.fine }}</td>
+                                <td>₹{{ book.fine|floatformat:2 }}</td>
                                 <td class="{% if book.returned %} text-success {% else %} text-danger {% endif %}">
                                     {% if book.returned %}
                                         Returned

@@ -63,6 +63,7 @@
             <p class="mb-1 mt-3 font-weight-semibold">{{ request.user.first_name }} {{ request.user.last_name }}</p>
             <p class="fw-light text-muted mb-0">{{ request.user.email }}</p>
           </div>
+          <a class="dropdown-item" href="{% url 'profile' %}"><i class="dropdown-item-icon mdi mdi-account-edit text-primary me-2"></i>My Profile</a>
           <a class="dropdown-item" href="{% url 'logout' %}"><i class="dropdown-item-icon mdi mdi-power text-primary me-2"></i>Sign Out</a>
         </div>
       </li>

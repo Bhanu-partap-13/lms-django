@@ -43,7 +43,7 @@
                                 <td>{{ forloop.counter }}</td>
                                 <td>{{ member.name }}</td>
                                 <td>{{ member.email }}</td>
-                                <td>{{ member.calculate_amount_due }}</td>
+                                <td>₹{{ member.calculate_amount_due|floatformat:2 }}</td>
                                 <td>
                                     <a href="{% url 'chat:direct_chat_member' member.id %}" class="btn btn-outline-primary btn-icon btn-chat-action" title="Chat with {{ member.name }}" aria-label="Chat with {{ member.name }}">
                                         <i class="mdi mdi-chat"></i>

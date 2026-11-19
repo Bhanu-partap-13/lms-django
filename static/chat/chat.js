@@ -386,6 +386,42 @@ class ChatClient {
       return false;
     }
   }
+
+  async createRoom(name, maxMembers) {
+    const roomName = (name || "").trim();
+    if (!roomName) {
+      showToast("Please enter a room name.");
+      return null;
+    }
+
+    try {
+      const csrfToken = getCookie("csrftoken") || "";
+      const resp = await fetch("/chat/rooms/create/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify({
+          room_type: "GROUP",
+          name: roomName,
+          max_members: maxMembers,
+        }),
+      });
+
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        return data;
+      }
+
+      showToast(data.error || "Failed to create room.");
+      return null;
+    } catch (err) {
+      console.error("Create room error:", err);
+      showToast("Network error creating room.");
+      return null;
+    }
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -468,5 +504,59 @@ function submitJoinRoom() {
       if (success) closeJoinModal();
     });
   }
+}
+
+function openCreateModal() {
+  const modal = document.getElementById("createRoomModal");
+  if (!modal) return;
+  modal.classList.add("active");
+
+  const codeContainer = document.getElementById("createdRoomCode");
+  const submitButton = document.getElementById("createRoomSubmitBtn");
+  const nameInput = document.getElementById("createRoomNameInput");
+
+  if (codeContainer) codeContainer.style.display = "none";
+  if (submitButton) submitButton.style.display = "";
+  if (nameInput) {
+    nameInput.value = "";
+    nameInput.focus();
+  }
+}
+
+function closeCreateModal() {
+  const modal = document.getElementById("createRoomModal");
+  if (modal) modal.classList.remove("active");
+}
+
+async function submitCreateRoom() {
+  const nameInput = document.getElementById("createRoomNameInput");
+  const capacityInput = document.getElementById("createRoomCapacityInput");
+  const submitButton = document.getElementById("createRoomSubmitBtn");
+  if (!chatClientInstance || !nameInput || !capacityInput) return;
+
+  const maxMembers = Math.max(2, Math.min(500, Number.parseInt(capacityInput.value, 10) || 500));
+  submitButton.disabled = true;
+  const room = await chatClientInstance.createRoom(nameInput.value, maxMembers);
+  submitButton.disabled = false;
+
+  if (room) {
+    const codeContainer = document.getElementById("createdRoomCode");
+    const codeInput = document.getElementById("createdRoomCodeInput");
+    codeInput.value = room.invite_code;
+    codeContainer.style.display = "block";
+    submitButton.style.display = "none";
+    showToast(`"${room.name}" created successfully.`);
+  }
+}
+
+function copyCreatedRoomCode() {
+  const codeInput = document.getElementById("createdRoomCodeInput");
+  if (!codeInput || !codeInput.value) return;
+
+  navigator.clipboard.writeText(codeInput.value).then(() => {
+    showToast("Invite code copied.");
+  }).catch(() => {
+    codeInput.select();
+  });
 }
 

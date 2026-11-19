@@ -78,3 +78,28 @@ class RegisterForm(forms.ModelForm):
             raise ValidationError(_("Passwords do not match"))
 
         return repeat_password
+
+
+class ProfileForm(forms.ModelForm):
+    first_name = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-lg", "placeholder": "Enter First Name"}),
+    )
+    last_name = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={"class": "form-control form-control-lg", "placeholder": "Enter Last Name"}),
+    )
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={"class": "form-control form-control-lg", "placeholder": "Enter Email"}),
+    )
+
+    class Meta:
+        model = Librarian
+        fields = ["first_name", "last_name", "email"]
+
+    def clean_email(self):
+        email = self.cleaned_data["email"]
+        if Librarian.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError(_("Email already exists"))
+        return email

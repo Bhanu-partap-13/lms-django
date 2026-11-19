@@ -31,9 +31,13 @@
           <span class="brand-title">Messages</span>
         </div>
         <div class="header-actions">
-          <!-- Join Room via Invite Button -->
-          <button class="icon-btn bordered" title="Join Room with Invite Code" onclick="openJoinModal()">
-            <i data-lucide="plus" style="width: 15px; height: 15px;"></i>
+          <!-- Join an existing team/room -->
+          <button class="icon-btn bordered" title="Join a team with invite code" onclick="openJoinModal()">
+            <i data-lucide="log-in" style="width: 15px; height: 15px;"></i>
+          </button>
+          <!-- Create a new team/room and generate an invite code -->
+          <button class="icon-btn bordered" title="Create a new room" onclick="openCreateModal()">
+            <i data-lucide="users-round" style="width: 15px; height: 15px;"></i>
           </button>
           <!-- Theme Inversion Toggle -->
           <button id="themeToggleBtn" class="icon-btn bordered" title="Toggle Theme (Light / Dark)" onclick="toggleTheme()">
@@ -261,6 +265,34 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeJoinModal()">Cancel</button>
         <button class="btn-primary" onclick="submitJoinRoom()">Join Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Room Modal -->
+  <div id="createRoomModal" class="modal-overlay" onclick="if(event.target === this) closeCreateModal()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span class="modal-title">Create Team Room</span>
+        <button class="icon-btn" onclick="closeCreateModal()">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-description">Create a group room and receive a unique 10-character invite code.</p>
+        <input type="text" id="createRoomNameInput" class="modal-input" placeholder="Room name, for example: Engineering" onkeydown="if(event.key === 'Enter') submitCreateRoom()">
+        <input type="number" id="createRoomCapacityInput" class="modal-input" placeholder="Maximum members" value="500" min="2" max="500" style="margin-top: 10px;">
+        <div id="createdRoomCode" style="display: none; margin-top: 14px;">
+          <span class="modal-description">Share this invite code:</span>
+          <div style="display: flex; gap: 8px; margin-top: 6px;">
+            <input type="text" id="createdRoomCodeInput" class="modal-input" readonly>
+            <button type="button" class="btn-secondary" onclick="copyCreatedRoomCode()">Copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
+        <button id="createRoomSubmitBtn" class="btn-primary" onclick="submitCreateRoom()">Create Room</button>
       </div>
     </div>
   </div>

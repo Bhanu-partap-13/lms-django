@@ -24,7 +24,7 @@ CATEGORY_CHOICES = (
 
 PAYMENT_METHOD_CHOICES = (
     ("cash", "Cash"),
-    ("mpesa", "Mpesa"),
+    ("upi", "UPI"),
     ("card", "Card"),
 )
 

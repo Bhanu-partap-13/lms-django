@@ -43,7 +43,35 @@ class ChatModelAndInviteTests(TestCase):
             max_members=5,
         )
         self.assertIsNotNone(room.invite_code)
+        self.assertEqual(len(room.invite_code), 10)
         self.assertTrue(room.is_invite_valid())
+
+    def test_create_room_api_returns_new_ten_character_code(self):
+        response = self.client.post(
+            "/chat/rooms/create/",
+            data=json.dumps({
+                "room_type": "GROUP",
+                "name": "New Team",
+                "max_members": 25,
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(len(data["invite_code"]), 10)
+
+        room = ChatRoom.objects.get(id=data["room_id"])
+        self.assertEqual(room.name, "New Team")
+        self.assertTrue(
+            RoomMember.objects.filter(
+                room=room,
+                user=self.user1,
+                role=RoomMember.Role.OWNER,
+                is_active=True,
+            ).exists()
+        )
 
     def test_invite_code_expiry(self):
         room = ChatRoom.objects.create(
